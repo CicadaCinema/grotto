@@ -12,25 +12,30 @@ pub fn main() -> iced::Result {
 
 #[derive(Default)]
 struct Counter {
-    value: usize,
-    textvalue: String,
-    imagepaths: Vec<PathBuf>,
-    imagedecision: Vec<usize>,
+    indicator_value: usize,
     increment_button: button::State,
     decrement_button: button::State,
+
+    glob_text_field_state: text_input::State,
+    glob_user_input: String,
+    submit_button: button::State,
+
+    image_paths: Vec<PathBuf>,
+    image_decisions: Vec<usize>,
+
     accept_button: button::State,
     reject_button: button::State,
     confirm_button: button::State,
-    submit_button: button::State,
-    text_field: text_input::State,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
     DecrementPressed,
-    InputChanged(String),
+
+    GlobUserInputChanged(String),
     SubmitPressed,
+
     AcceptPressed,
     RejectPressed,
     ConfirmPressed,
@@ -44,46 +49,48 @@ impl Sandbox for Counter {
     }
 
     fn title(&self) -> String {
-        String::from("Title")
+        String::from("Grotto")
     }
 
     fn update(&mut self, message: Message) {
         match message {
             Message::IncrementPressed => {
-                if self.imagepaths.len() != self.value + 1 {
-                    self.value += 1;
+                if self.image_paths.len() != self.indicator_value + 1 {
+                    self.indicator_value += 1;
                 }
             }
             Message::DecrementPressed => {
-                if self.value != 0 {
-                    self.value -= 1;
+                if self.indicator_value != 0 {
+                    self.indicator_value -= 1;
                 }
             }
-            Message::InputChanged(new_string) => {
-                self.textvalue = new_string;
+            Message::GlobUserInputChanged(new_string) => {
+                self.glob_user_input = new_string;
             }
             Message::SubmitPressed => {
-                self.value = 0;
+                self.indicator_value = 0;
+                self.image_paths.clear();
+                self.image_decisions.clear();
 
-                for entry in glob(&*self.textvalue).expect("Failed to read glob pattern") {
+                for entry in glob(&*self.glob_user_input).expect("Failed to read glob pattern") {
                     match entry {
                         Ok(path) => {
-                            self.imagepaths.push(path);
-                            self.imagedecision.push(0);
+                            self.image_paths.push(path);
+                            self.image_decisions.push(0);
                         }
                         Err(e) => println!("{:?}", e),
                     }
                 }
 
-                for element in &self.imagepaths {
+                for element in &self.image_paths {
                     println!("{}", (**element).to_str().unwrap());
                 }
             }
             Message::AcceptPressed => {
-                self.imagedecision[self.value] = 1;
+                self.image_decisions[self.indicator_value] = 1;
             }
             Message::RejectPressed => {
-                self.imagedecision[self.value] = 2;
+                self.image_decisions[self.indicator_value] = 2;
             }
             Message::ConfirmPressed => {
                 println!("confirm!");
@@ -99,37 +106,37 @@ impl Sandbox for Counter {
                 Row::new()
                     .spacing(50)
                     .push(
-                        Button::new(&mut self.increment_button, Text::new("Increment"))
-                            .on_press(Message::IncrementPressed),
-                    )
-                    .push(Text::new(self.value.to_string()).size(50))
-                    .push(
-                        Button::new(&mut self.decrement_button, Text::new("Decrement"))
+                        Button::new(&mut self.decrement_button, Text::new("<-"))
                             .on_press(Message::DecrementPressed),
+                    )
+                    .push(Text::new(self.indicator_value.to_string()).size(50))
+                    .push(
+                        Button::new(&mut self.increment_button, Text::new("->"))
+                            .on_press(Message::IncrementPressed),
                     ),
             )
-            .push(Text::new("some text").size(50))
             .push(TextInput::new(
-                &mut self.text_field,
-                "placeholder",
-                &*self.textvalue,
-                Message::InputChanged,
+                &mut self.glob_text_field_state,
+                "Enter glob pattern",
+                &*self.glob_user_input,
+                Message::GlobUserInputChanged,
             ))
             .push(
                 Button::new(&mut self.submit_button, Text::new("Submit"))
                     .on_press(Message::SubmitPressed),
             )
-            .push(if self.imagepaths.is_empty() {
+            .push(if self.image_paths.is_empty() {
                 let a = "/images/ferris.png";
                 let b = env!("CARGO_MANIFEST_DIR");
                 let c = b.to_string() + &*a.to_string();
-                Image::new(&*c)
+                Image::new(&*c).height(Length::from(400))
             } else {
-                Image::new((*self.imagepaths[self.value]).to_str().unwrap())
+                Image::new((*self.image_paths[self.indicator_value]).to_str().unwrap())
+                    .height(Length::from(400))
             })
-            .push(if self.imagepaths.is_empty() {
+            .push(if self.image_paths.is_empty() {
                 Row::new().push(
-                    Text::new("###########")
+                    Text::new("█████████")
                         .size(50)
                         .color(Color::new(0.5, 0.5, 0.5, 1.0)),
                 )
@@ -137,11 +144,11 @@ impl Sandbox for Counter {
                 Row::new()
                     .spacing(50)
                     .push(
-                        Button::new(&mut self.accept_button, Text::new("Accept"))
-                            .on_press(Message::AcceptPressed),
+                        Button::new(&mut self.reject_button, Text::new("Reject"))
+                            .on_press(Message::RejectPressed),
                     )
-                    .push(Text::new("###########").size(50).color(
-                        match self.imagedecision[self.value] {
+                    .push(Text::new("█████████").size(50).color(
+                        match self.image_decisions[self.indicator_value] {
                             0 => Color::new(0.5, 0.5, 1.0, 1.0),
                             1 => Color::new(0.5, 1.0, 0.5, 1.0),
                             2 => Color::new(1.0, 0.5, 0.5, 1.0),
@@ -149,8 +156,8 @@ impl Sandbox for Counter {
                         },
                     ))
                     .push(
-                        Button::new(&mut self.reject_button, Text::new("Reject"))
-                            .on_press(Message::RejectPressed),
+                        Button::new(&mut self.accept_button, Text::new("Accept"))
+                            .on_press(Message::AcceptPressed),
                     )
             })
             .into()
