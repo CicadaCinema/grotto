@@ -1,9 +1,10 @@
 use glob::glob;
 use iced::{
-    button, image, text_input, Align, Button, Column, Element, Image, Row, Sandbox, Settings, Text,
-    TextInput,
+    button, image, text_input, Align, Button, Color, Column, Element, Image, Length, Rectangle,
+    Row, Sandbox, Settings, Text, TextInput,
 };
 use std::path::PathBuf;
+use std::ptr::null;
 
 pub fn main() -> iced::Result {
     Counter::run(Settings::default())
@@ -49,7 +50,7 @@ impl Sandbox for Counter {
     fn update(&mut self, message: Message) {
         match message {
             Message::IncrementPressed => {
-                if self.imagepaths.len() != self.value + 1 && self.value != 0 {
+                if self.imagepaths.len() != self.value + 1 {
                     self.value += 1;
                 }
             }
@@ -58,8 +59,8 @@ impl Sandbox for Counter {
                     self.value -= 1;
                 }
             }
-            Message::InputChanged(new_String) => {
-                self.textvalue = new_String;
+            Message::InputChanged(new_string) => {
+                self.textvalue = new_string;
             }
             Message::SubmitPressed => {
                 self.value = 0;
@@ -125,6 +126,32 @@ impl Sandbox for Counter {
                 Image::new(&*c)
             } else {
                 Image::new((*self.imagepaths[self.value]).to_str().unwrap())
+            })
+            .push(if self.imagepaths.is_empty() {
+                Row::new().push(
+                    Text::new("###########")
+                        .size(50)
+                        .color(Color::new(0.5, 0.5, 0.5, 1.0)),
+                )
+            } else {
+                Row::new()
+                    .spacing(50)
+                    .push(
+                        Button::new(&mut self.accept_button, Text::new("Accept"))
+                            .on_press(Message::AcceptPressed),
+                    )
+                    .push(Text::new("###########").size(50).color(
+                        match self.imagedecision[self.value] {
+                            0 => Color::new(0.5, 0.5, 1.0, 1.0),
+                            1 => Color::new(0.5, 1.0, 0.5, 1.0),
+                            2 => Color::new(1.0, 0.5, 0.5, 1.0),
+                            _ => panic!(),
+                        },
+                    ))
+                    .push(
+                        Button::new(&mut self.reject_button, Text::new("Reject"))
+                            .on_press(Message::RejectPressed),
+                    )
             })
             .into()
     }
